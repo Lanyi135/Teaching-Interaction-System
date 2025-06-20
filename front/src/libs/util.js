@@ -431,7 +431,6 @@ util.initMenuData = function (vm, data) {
     });
     vm.$store.commit('setTagsList', tagsList);
 };
-
 // 生成路由节点
 util.initRouterNode = function (routers, data) {
 

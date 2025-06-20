@@ -137,6 +137,7 @@ export const menuConfig = [
             component: 'study/curriculum/coursedetail',
             path: 'coursedetail',
           },
+          
           {
             id: 9,
             name: 'Discussion',

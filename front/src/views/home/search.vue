@@ -87,7 +87,6 @@ export default {
     },
 };
 </script>
-
 <style lang="less">
 .search-menu {
     position: relative;

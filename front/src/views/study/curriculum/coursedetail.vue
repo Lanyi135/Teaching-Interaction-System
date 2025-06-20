@@ -185,7 +185,6 @@ export default {
       } catch (error) {
       }
     },
-    
     async loadUsers() {
       try {
         const res = await getAllUsers()

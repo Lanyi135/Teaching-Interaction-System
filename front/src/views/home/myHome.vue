@@ -254,7 +254,6 @@ export default {
         overflow: hidden;
         margin-top:20px;
         
-        
         &-item {
             padding: 12px 16px;
             display: flex;

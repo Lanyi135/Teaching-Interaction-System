@@ -7,7 +7,6 @@
           <span class="line"></span>
           <span class="title">Teaching Interaction System</span>
         </div>
-
       </div>
       <div class="loginMiddle">
         <div class="login-background">
