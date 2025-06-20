@@ -35,7 +35,43 @@
             <Option value="ongoing" label="Ongoing" />
             <Option value="closed" label="Closed" />
           </Select>
+          <Button v-if="isTeacher" type="primary" class="create-course-btn" @click="showCreateCourseModal = true">Create New Course</Button>
         </div>
+
+        <Modal v-model="showCreateCourseModal" title="Create New Course" ok-text="OK" cancel-text="Cancel" @on-ok="handleCreateCourse">
+          <Form :model="createCourseForm" :label-width="150">
+            <FormItem label="Course Name：">
+              <Input v-model="createCourseForm.name"  />
+            </FormItem>
+            <FormItem label="Credits：">
+              <InputNumber v-model="createCourseForm.credits" :min="1" :max="10" style="width:100%;" />
+            </FormItem>
+            <FormItem label="Start Time：">
+              <DatePicker v-model="createCourseForm.startTime" type="date" format="yyyy-MM-dd" style="width:100%" />
+            </FormItem>
+            <FormItem label="End Time：">
+              <DatePicker v-model="createCourseForm.endTime" type="date" format="yyyy-MM-dd" style="width:100%" />
+            </FormItem>
+            <FormItem label="Course Image：">
+              <Upload
+                :action="uploadFileUrl"
+                :headers="uploadHeaders"
+                :show-upload-list="false"
+                :before-upload="beforeImageUpload"
+                :on-success="handleImageUploadSuccess"
+                :on-error="handleImageUploadError"
+                accept="image/*">
+                <Button type="primary">Upload</Button>
+              </Upload>
+              <div v-if="createCourseForm.image" style="margin-top:10px;">
+                <img :src="createCourseForm.image" alt="Course Image" style="max-width: 180px; max-height: 120px; border-radius: 8px; border:1px solid #eee;" />
+              </div>
+            </FormItem>
+            <FormItem label="Course Introduction：">
+              <Input v-model="createCourseForm.introduction" type="textarea" :rows="4" />
+            </FormItem>
+          </Form>
+        </Modal>
 
         <div class="course-grid">
           <Row :gutter="20">
@@ -49,7 +85,7 @@
                   <div class="course-meta">
                     <p class="teacher">
                       <Icon type="ios-person" />
-                      {{ course.teacherName || '未知教师' }}
+                      {{ course.teacherName || 'Unknown instructor' }}
                     </p>
                     <div class="course-status" :class="course.status">
                       {{ course.status }}
@@ -66,8 +102,11 @@
 </template>
 
 <script>
-import { getAllCourses } from '@/api/course';
+import { getAllCourses, addCourse, saveOrUpdateCourse } from '@/api/course';
 import { getAllUsers } from '@/views/roster/user/api';
+import { uploadFile } from '@/api/index';
+import Cookies from 'js-cookie';
+import { getStore } from '@/libs/storage';
 
 export default {
   name: 'CourseLobby',
@@ -76,11 +115,21 @@ export default {
       searchQuery: '',
       courseStatus: '',
       courses: [],
-      users: []
+      users: [],
+      showCreateCourseModal: false,
+      createCourseForm: {
+        name: '',
+        credits: '',
+        startTime: '',
+        endTime: '',
+        introduction: '',
+        image: ''
+      },
+      uploadFileUrl: '/wl' + uploadFile,
+      uploadHeaders: {
+        accessToken: getStore('accessToken')
+      }
     }
-  },
-  created() {
-    this.loadData();
   },
   computed: {
     filteredCourses() {
@@ -91,7 +140,27 @@ export default {
           return matchesSearch && matchesStatus
         })
         .sort((a, b) => a.id - b.id)
+    },
+    isTeacher() {
+      try {
+        const userInfo = Cookies.get('userInfo')
+        if (userInfo) {
+          const user = JSON.parse(userInfo)
+          if (user.role && user.role.name) {
+            return user.role.name === 'ROLE_TEACHER' || user.role.name === 'ROLE_ADMIN'
+          }
+          if (user.roleName) {
+            return user.roleName === 'ROLE_TEACHER' || user.roleName === 'ROLE_ADMIN'
+          }
+        }
+        return false
+      } catch (error) {
+        return false
+      }
     }
+  },
+  created() {
+    this.loadData();
   },
   methods: {
     async loadData() {
@@ -106,7 +175,8 @@ export default {
           this.courses = res.result.map(course => ({
             ...course,
             teacherName: this.getTeacherName(course.createBy),
-            status: course.status || 'Normal'
+            status: course.status || 'Normal',
+            credits: course.credits !== undefined ? course.credits : 2
           }));
         } else {
           this.$Message.error('获取课程列表失败');
@@ -133,8 +203,7 @@ export default {
       if (!this.users || this.users.length === 0) {
         return `教师${createBy}`;
       }
-      
-      // 确保数据类型匹配，将createBy转换为数字进行比较
+
       const createById = parseInt(createBy);
       const user = this.users.find(u => u.id === createById);
       
@@ -149,6 +218,106 @@ export default {
     },
     handleSearch() {
       // 可以在这里添加搜索逻辑
+    },
+    beforeImageUpload(file) {
+      const isImage = file.type.startsWith('image/');
+      const isLt2M = file.size / 1024 / 1024 < 2;
+      if (!isImage) {
+        this.$Message.error('Only image files are allowed.');
+      }
+      if (!isLt2M) {
+        this.$Message.error('Image size must be less than 2MB.');
+      }
+      return isImage && isLt2M;
+    },
+    handleImageUploadSuccess(res, file) {
+      if (res.success && res.result && res.result.url) {
+        this.createCourseForm.image = res.result.url;
+        this.$Message.success('Image uploaded successfully!');
+      } else {
+        this.$Message.error(res.message || 'Failed to upload image');
+      }
+    },
+    handleImageUploadError() {
+      this.$Message.error('Failed to upload image');
+    },
+    async handleCreateCourse() {
+      if (!this.createCourseForm.name || !this.createCourseForm.credits || !this.createCourseForm.startTime || !this.createCourseForm.endTime || !this.createCourseForm.introduction) {
+        this.$Message.warning('Please fill in all fields');
+        return false;
+      }
+      const params = {
+        title: this.createCourseForm.name,
+        credits: this.createCourseForm.credits,
+        startTime: this.createCourseForm.startTime,
+        endTime: this.createCourseForm.endTime,
+        content: this.createCourseForm.introduction,
+        image: this.createCourseForm.image
+      };
+      try {
+        const res = await addCourse(params);
+        if (res.success) {
+          this.$Message.success('Course created successfully!');
+          this.showCreateCourseModal = false;
+          this.createCourseForm = { name: '', credits: '', startTime: '', endTime: '', introduction: '', image: '' };
+          await this.loadCourses();
+        } else {
+          this.$Message.error(res.message || 'Failed to create course');
+        }
+      } catch (error) {
+        this.$Message.error('Failed to create course');
+      }
+    },
+    async saveEditInfo() {
+      // 校验
+      if (!this.editCourseInfo.name || !this.editCourseInfo.credits || !this.editCourseInfo.startTime || !this.editCourseInfo.endTime) {
+        this.$Message.warning('Please fill in all fields');
+        return false;
+      }
+
+      // 格式化时间（确保为字符串）
+      const formatDate = dt => {
+        if (!dt) return '';
+        const d = new Date(dt);
+        const pad = n => n < 10 ? '0' + n : n;
+        return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+      };
+
+      // 组装参数
+      const params = {
+        id: this.courseInfo.id, // 课程ID必须传
+        title: this.editCourseInfo.name,
+        credits: this.editCourseInfo.credits !== undefined ? this.editCourseInfo.credits : 2,
+        startTime: formatDate(this.editCourseInfo.startTime),
+        endTime: formatDate(this.editCourseInfo.endTime),
+        content: this.courseInfo.introduction, // 简介可选
+        image: this.courseInfo.image           // 图片可选
+      };
+
+      try {
+        const res = await saveOrUpdateCourse(params);
+        if (res.success) {
+          this.$Message.success('Course info updated successfully!');
+          this.showEditInfoModal = false;
+          await this.getCourseInfo(); // 关键：刷新详情
+        } else {
+          this.$Message.error(res.message || 'Failed to update course info');
+        }
+      } catch (error) {
+        this.$Message.error('Failed to update course info');
+      }
+    },
+    openEditInfoModal() {
+      this.editCourseInfo = {
+        id: this.courseInfo.id,
+        name: this.courseInfo.name,
+        credits: this.courseInfo.credits !== undefined ? this.courseInfo.credits : 2,
+        startTime: this.courseInfo.startTime || '',
+        endTime: this.courseInfo.endTime || '',
+        introduction: this.courseInfo.introduction || '',
+        image: this.courseInfo.image || ''
+      };
+      this.showEditInfoModal = true;
     }
   }
 }
@@ -366,5 +535,10 @@ export default {
   &.closed {
     background: rgb(229, 88, 88);
   }
+}
+
+.create-course-btn {
+  margin-left: auto;
+  border-radius: 22px;
 }
 </style> 

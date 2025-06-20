@@ -130,29 +130,6 @@ export const menuConfig = [
             permTypes: ['add', 'edit', 'delete', 'enable', 'disable']
           }
         ]
-      },
-      {
-        id: 7,
-        name: 'resMenu',
-        title: '课程课件模块',
-        icon: 'ios-apps',
-        type: 0,
-        level: 1,
-        component: 'Main',
-        path: '/resMenu',
-        children: [
-          {
-            id: 8,
-            name: 'courseResources',
-            title: '课程课件',
-            icon: 'md-aperture',
-            type: 0,
-            level: 2,
-            component: 'study/courseResources/index',
-            path: 'courseResources',
-            permTypes: ['add', 'edit', 'delete']
-          }
-        ]
       }
     ]
   }

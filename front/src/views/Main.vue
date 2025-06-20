@@ -68,9 +68,9 @@
                                 <Avatar :src="avatarPath" style="margin-left: 15px;height:40px;width:40px"></Avatar>
                             </a>
                             <DropdownMenu slot="list">
-                                <DropdownItem name="changePass">修改密码</DropdownItem>
-                                <DropdownItem name="ownSpace">个人门户</DropdownItem>
-                                <DropdownItem name="loginout" divided>退出</DropdownItem>
+                                <DropdownItem name="changePass">Change pwd</DropdownItem>
+                                <DropdownItem name="ownSpace">My Home</DropdownItem>
+                                <DropdownItem name="loginout" divided>Login Out</DropdownItem>
                             </DropdownMenu>
                         </Dropdown>
                     </Row>

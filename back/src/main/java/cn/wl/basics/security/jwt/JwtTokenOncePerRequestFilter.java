@@ -50,7 +50,7 @@ public class JwtTokenOncePerRequestFilter extends OncePerRequestFilter {
                 "/wl/user/regist",
                 "/wl/login",
                 "/wl/user/getAll",
-                "/wl/course/getAll",
+                "/wl/course/**",
                 "/wl/course/getOne",
                 "/wl/course/count",
                 "/wl/course/getByPage",

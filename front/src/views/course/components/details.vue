@@ -66,13 +66,18 @@
       </div>
 
       <div class="reviews">
-        <div class="card-boxs review-item" v-for="review in reviews" :key="review.id">
+        <div class="card-boxs review-item" v-for="review in reviews" :key="review.id" style="position:relative;">
           <div class="review-header">
             <span class="reviewer">{{ review.reviewerName }}</span>
             <Rate disabled :value="review.rating" class="stars" />
           </div>
           <p class="review-content">{{ review.content }}</p>
           <p class="review-time">{{ formatTime(review.createTime) }}</p>
+          <div v-if="review.createBy === currentUserId || isAdmin"
+               class="review-delete-btn"
+               @click="handleDeleteReview(review)">
+            <Icon type="md-trash" size="20" />
+          </div>
         </div>
 
         <div class="card-boxs no-reviews" v-if="reviews.length === 0">
@@ -84,8 +89,9 @@
 </template>
 
 <script>
-import { addFeedback } from '@/api/feedback'
+import { addFeedback, deleteFeedbacks } from '@/api/feedback'
 import Cookies from 'js-cookie'
+import { saveOrUpdateCourse } from '@/api/course'
 
 export default {
   name: 'CourseDetails',
@@ -120,6 +126,25 @@ export default {
       if (this.reviews.length === 0) return 0;
       const totalRating = this.reviews.reduce((sum, review) => sum + (review.rating || 0), 0);
       return totalRating / this.reviews.length;
+    },
+    currentUserId() {
+      try {
+        return JSON.parse(Cookies.get('userInfo')).id
+      } catch {
+        return null
+      }
+    },
+    isAdmin() {
+      try {
+        const userInfo = Cookies.get('userInfo')
+        if (userInfo) {
+          const user = JSON.parse(userInfo)
+          return (user.role && user.role.name === 'ROLE_ADMIN') || user.roleName === 'ROLE_ADMIN'
+        }
+        return false
+      } catch {
+        return false
+      }
     }
   },
   methods: {
@@ -179,14 +204,54 @@ export default {
       }
     },
 
-    toggleEditIntro() {
+    async toggleEditIntro() {
       if (this.editIntroMode) {
-        // 保存
-        this.$emit('update-introduction', this.editIntroduction)
+        if (!this.editIntroduction.trim()) {
+          this.$Message.warning('Course introduction cannot be empty');
+          return;
+        }
+        try {
+          const params = {
+            id: this.courseInfo.id,
+            content: this.editIntroduction.trim()
+          };
+          const res = await saveOrUpdateCourse(params);
+          if (res.success) {
+            this.$Message.success('Course introduction updated successfully!');
+            this.$emit('update-introduction', this.editIntroduction.trim());
+            this.editIntroMode = false;
+          } else {
+            this.$Message.error(res.message || 'Failed to update introduction');
+          }
+        } catch (error) {
+          this.$Message.error('Failed to update introduction');
+        }
       } else {
         this.editIntroduction = this.courseInfo.introduction
+        this.editIntroMode = true;
       }
-      this.editIntroMode = !this.editIntroMode
+    },
+
+    async handleDeleteReview(review) {
+      this.$Modal.confirm({
+        title: 'Confirm deletion',
+        content: 'Are you sure you want to delete this feedback?',
+        okText: 'del',
+        cancelText: 'Cancel',
+        onOk: async () => {
+          try {
+            const res = await deleteFeedbacks({ ids: [review.id] })
+            if (res.success) {
+              this.$Message.success('删除成功')
+              this.$emit('refresh-reviews')
+            } else {
+              this.$Message.error(res.message || '删除失败')
+            }
+          } catch (e) {
+            this.$Message.error('删除失败')
+          }
+        }
+      })
     }
   }
 }
@@ -327,6 +392,7 @@ export default {
 
   .reviews {
     .review-item {
+      position: relative;
       margin-bottom: 16px;
       &:last-child {
         margin-bottom: 0;
@@ -360,6 +426,26 @@ export default {
         color: #808695;
         font-size: 12px;
         margin: 0;
+      }
+
+      .review-delete-btn {
+        position: absolute;
+        right: 20px;
+        bottom: 35px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        padding: 4px 8px;
+        color: #808695;
+        background: none;
+        border: none;
+        box-shadow: none;
+
+        &:hover {
+          color: #ed4014;
+        }
       }
     }
   }

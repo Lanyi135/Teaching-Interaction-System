@@ -1,5 +1,7 @@
 package cn.wl.study.serviceimpl;
 
+import cn.wl.basics.baseVo.Result;
+import cn.wl.basics.utils.ResultUtil;
 import cn.wl.study.entity.Posts;
 import cn.wl.study.mapper.PostsMapper;
 import cn.wl.study.service.IPostsService;
@@ -9,7 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import com.github.houbb.sensitive.word.core.SensitiveWordHelper;
 import java.util.List;
 
 @Slf4j
@@ -54,5 +56,12 @@ public class IPostsServiceImpl extends ServiceImpl<PostsMapper, Posts> implement
         return this.list(queryWrapper);
     }
 
-
+    @Override
+    public Result<Posts> saveOrUpdatePosts(Posts posts){
+        posts.setContent(SensitiveWordHelper.replace(posts.getContent()));
+        if(saveOrUpdate(posts)){
+            return new ResultUtil<Posts>().setData(posts);
+        }
+        return ResultUtil.error();
+    }
 }

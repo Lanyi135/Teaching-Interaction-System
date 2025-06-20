@@ -4,7 +4,6 @@ import cn.wl.basics.redis.RedisTemplateHelper;
 import cn.wl.basics.security.jwt.*;
 import cn.wl.basics.utils.SecurityUtil;
 import cn.wl.basics.parameter.WlLoginProperties;
-import cn.wl.basics.security.validate.ImageValidateFilter;
 import io.swagger.annotations.ApiOperation;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
@@ -45,9 +44,6 @@ public class WebSecurityConfig {
     private WlAccessDeniedHandler wlAccessDeniedHandler;
 
     @Autowired
-    private ImageValidateFilter imageValidateFilter;
-
-    @Autowired
     private RedisTemplateHelper redisTemplate;
 
     @Autowired
@@ -56,57 +52,46 @@ public class WebSecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+
         http
-                .csrf(csrf -> csrf.disable())
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .cors(Customizer.withDefaults())
-                .exceptionHandling(exception -> exception
-                        .accessDeniedHandler(wlAccessDeniedHandler)
-                )
-                .authenticationProvider(authenticationProvider())
-                .addFilterBefore(authenticationJwtTokenFilter(), UsernamePasswordAuthenticationFilter.class)
-                //.addFilterBefore(imageValidateFilter, UsernamePasswordAuthenticationFilter.class) // 图形验证码（如需）
-                .authorizeHttpRequests(auth -> auth
+                // 配置白名单路径，这些路径不需要认证
+                .authorizeHttpRequests(requestMatcherRegistry -> requestMatcherRegistry
                         .requestMatchers(
                                 "/wl/dictData/getByType/**",
                                 "/wl/file/view/**",
                                 "/wl/user/regist",
                                 "/wl/user/getAll",
                                 "/wl/common/**",
-                                "/wl/course/getAll",
-                                "/wl/course/getOne",
-                                "/wl/course/count",
-                                "/wl/course/getByPage",
+                                "/wl/course/**",
                                 "/wl/feedback/getAll",
                                 "/wl/feedback/getOne",
                                 "/wl/feedback/count",
                                 "/wl/feedback/getByPage",
-                                "/wl/course/*/topics/getAll",
-                                "/wl/course/*/topics/getAll/sorted_by_likes",
-                                "/wl/course/*/topics/count",
-                                "/wl/course/*/topics/getOne",
-                                "/wl/course/*/posts/getAll",
-                                "/wl/course/*/posts/getAll/sorted_by_likes",
-                                "/wl/course/*/posts/count",
-                                "/wl/course/*/posts/getOne",
                                 "/*/*.js", "/*/*.css", "/*/*.png", "/*/*.ico",
-                                "/swagger-ui.html",
-                                "/wl/login",
-                                "/wl/common/needLogin"
+                                "/swagger-ui.html"
                         ).permitAll()
+                        // 其他请求需要认证
                         .anyRequest().authenticated()
                 )
-                .formLogin(form -> form
+                // 配置登录页面和登录处理
+                .formLogin(formLogin -> formLogin
                         .loginPage("/wl/common/needLogin")
-                        .loginProcessingUrl("/wl/login")
+                        .loginProcessingUrl("/wl/login").permitAll()
                         .successHandler(authenticationSuccessHandler)
                         .failureHandler(authenticationFailHandler)
-                        .permitAll()
                 )
+                // 配置注销
                 .logout(logout -> logout.permitAll())
-                .headers(headers -> headers
-                        .frameOptions(frame -> frame.disable())
-                );
+                // 跨域配置
+//                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                // 禁用CSRF防护
+                .csrf(csrf -> csrf.disable())
+                // 会话管理策略
+                .sessionManagement(sessionManagement -> sessionManagement.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                // 异常处理
+                .exceptionHandling(exceptionHandling -> exceptionHandling.accessDeniedHandler(wlAccessDeniedHandler))
+                // 添加自定义过滤器
+                .addFilterBefore(authenticationJwtTokenFilter(), UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }

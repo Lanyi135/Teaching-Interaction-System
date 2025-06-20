@@ -79,10 +79,7 @@ public class TopicsController {
     @RequestMapping(value = "/insertOrUpdate", method = RequestMethod.POST)
     @ApiOperation(value = "增改主题")
     public Result<Topics> saveOrUpdate(Topics topics){
-        if(iTopicsService.saveOrUpdate(topics)){
-            return new ResultUtil<Topics>().setData(topics);
-        }
-        return ResultUtil.error();
+        return iTopicsService.saveOrUpdateTopics(topics);
     }
 
     @RequestMapping(value = "/insert", method = RequestMethod.POST)
@@ -90,10 +87,7 @@ public class TopicsController {
     public Result<Topics> insert(Topics topics){
         User currUser = securityUtil.getCurrUser();
         topics.setCreateBy(currUser.getId());
-        topics.setTitle("");
-        topics.setDescription("");
-        iTopicsService.saveOrUpdate(topics);
-        return new ResultUtil<Topics>().setData(topics);
+        return iTopicsService.saveOrUpdateTopics(topics);
     }
 
     @RequestMapping(value = "/delByIds", method = RequestMethod.POST)

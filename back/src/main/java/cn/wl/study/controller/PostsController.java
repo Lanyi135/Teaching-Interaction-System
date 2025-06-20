@@ -57,39 +57,18 @@ public class PostsController {
         return new ResultUtil<List<Posts>>().setData(posts);
     }
 
-    /*
-    @RequestMapping(value = "/getByPage", method = RequestMethod.GET)
-    @ApiOperation(value = "查询留言")
-    public Result<IPage<Posts>> getByPage(@ModelAttribute Posts posts , @ModelAttribute PageVo page){
-        QueryWrapper<Posts> qw = new QueryWrapper<>();
-        if(!WlNullUtils.isNull(posts.getContent())) {
-            qw.like("content",posts.getContent());
-        }
-        if(!WlNullUtils.isNull(posts.getCreateBy())) {
-            qw.like("user_id",posts.getCreate_by());
-        }
-        IPage<Posts> data = iPostsService.page(PageUtil.initMpPage(page),qw);
-        return new ResultUtil<IPage<Posts>>().setData(data);
-    }
-    */
-
     @RequestMapping(value = "/insertOrUpdate", method = RequestMethod.POST)
     @ApiOperation(value = "增改留言")
     public Result<Posts> saveOrUpdate(Posts posts){
-        if(iPostsService.saveOrUpdate(posts)){
-            return new ResultUtil<Posts>().setData(posts);
-        }
-        return ResultUtil.error();
+        return iPostsService.saveOrUpdatePosts(posts);
     }
 
     @RequestMapping(value = "/insert", method = RequestMethod.POST)
     @ApiOperation(value = "新增留言")
     public Result<Posts> insert(Posts posts){
         User currUser = securityUtil.getCurrUser();
-        //posts.setCreateBy(currUser.getId());
-        posts.setContent("");
-        iPostsService.saveOrUpdate(posts);
-        return new ResultUtil<Posts>().setData(posts);
+        posts.setCreateBy(currUser.getId());
+        return iPostsService.saveOrUpdatePosts(posts);
     }
 
     @RequestMapping(value = "/delByIds", method = RequestMethod.POST)
